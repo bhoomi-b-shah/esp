@@ -12,8 +12,9 @@ int main(int argc, char **argv) {
     printf("****start*****\n");
 
     /* <<--params-->> */
-	 const unsigned data_out_size = 2;
-	 const unsigned data_in_size = 8192;
+	 const unsigned data_out_size = 8;
+	 const unsigned data_in_size = 4096;
+	 const unsigned block_size = 32;
 
     uint32_t in_words_adj;
     uint32_t out_words_adj;
@@ -35,15 +36,15 @@ int main(int argc, char **argv) {
 
     dma_word_t *mem=(dma_word_t*) malloc(dma_size * sizeof(dma_word_t));
     word_t *inbuff=(word_t*) malloc(in_size * sizeof(word_t));
-    f_word_t *outbuff=(f_word_t*) malloc(out_size * sizeof(f_word_t));
-    f_word_t *outbuff_gold= (f_word_t*) malloc(out_size * sizeof(f_word_t));
+    word_t *outbuff=(word_t*) malloc(out_size * sizeof(word_t));
+    word_t *outbuff_gold= (word_t*) malloc(out_size * sizeof(word_t));
     dma_info_t load;
     dma_info_t store;
 
     // Prepare input data
     for(unsigned i = 0; i < 1; i++)
         for(unsigned j = 0; j < data_in_size; j++)
-            inbuff[i * in_words_adj + j] = (word_t) (j%125)%2;
+            inbuff[i * in_words_adj + j] = (word_t) j;
 
     for(unsigned i = 0; i < dma_in_size; i++)
 	for(unsigned k = 0; k < VALUES_PER_WORD; k++)
@@ -52,21 +53,22 @@ int main(int argc, char **argv) {
     // Set golden output
     for(unsigned i = 0; i < 1; i++)
         for(unsigned j = 0; j < data_out_size; j++)
-            outbuff_gold[i * out_words_adj + j] = (f_word_t) j;
+            outbuff_gold[i * out_words_adj + j] = (word_t) j;
 
-    dma_f_word_t* f_mem = (dma_f_word_t*)mem;
+
     // Call the TOP function
-    top(f_mem, mem,
+    top(mem, mem,
         /* <<--args-->> */
 	 	 data_out_size,
 	 	 data_in_size,
+	 	 block_size,
         load, store);
 
     // Validate
     uint32_t out_offset = dma_in_size;
     for(unsigned i = 0; i < dma_out_size; i++)
 	for(unsigned k = 0; k < VALUES_PER_WORD; k++)
-	    outbuff[i * VALUES_PER_WORD + k] = f_mem[out_offset + i].word[k];
+	    outbuff[i * VALUES_PER_WORD + k] = mem[out_offset + i].word[k];
 
     int errors = 0;
     for(unsigned i = 0; i < 1; i++)
@@ -75,7 +77,7 @@ int main(int argc, char **argv) {
 		errors++;
 
     if (errors)
-	std::cout << "Test FAILED with " << errors << " errors.  " << outbuff[0].to_float() << "   " << outbuff[1] << std::endl;
+	std::cout << "Test FAILED with " << errors << " errors." << std::endl;
     else
 	std::cout << "Test PASSED." << std::endl;
 

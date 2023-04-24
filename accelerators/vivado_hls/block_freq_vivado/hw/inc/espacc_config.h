@@ -8,7 +8,7 @@
 // Data type
 
 #define IS_TYPE_FIXED_POINT 0
-#define FRAC_BITS 8
+#define FRAC_BITS 0
 #define IS_TYPE_UINT 0
 #define IS_TYPE_INT 1
 #define IS_TYPE_FLOAT 0
@@ -17,6 +17,6 @@
 
 #define SIZE_IN_CHUNK_DATA 4096
 
-#define SIZE_OUT_CHUNK_DATA 2
+#define SIZE_OUT_CHUNK_DATA 8
 
 #endif

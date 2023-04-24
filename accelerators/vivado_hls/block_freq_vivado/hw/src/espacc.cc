@@ -10,19 +10,20 @@ void load(word_t _inbuff[SIZE_IN_CHUNK_DATA], dma_word_t *in1,
           /* <<--compute-params-->> */
 	 const unsigned data_out_size,
 	 const unsigned data_in_size,
+      const unsigned block_size,
 	  dma_info_t &load_ctrl, int chunk, int batch)
 {
 load_data:
 
-    const unsigned length = 4096; // round_up(data_in_size, VALUES_PER_WORD) / 64;
+    const unsigned length = round_up(data_in_size, VALUES_PER_WORD) / 64;
     const unsigned index = length * (batch * 1 + chunk);
-
-    #ifndef __SYNTHESIS__
-            std::cout << length << "\n";
-        #endif
 
     unsigned dma_length = length / VALUES_PER_WORD;
     unsigned dma_index = index / VALUES_PER_WORD;
+
+    #ifndef __SYNTHESIS__
+        std::cout << length << "\n";
+    #endif
 
     load_ctrl.index = dma_index;
     load_ctrl.length = dma_length;
@@ -35,10 +36,11 @@ load_data:
     }
 }
 
-void store(f_word_t _outbuff[SIZE_OUT_CHUNK_DATA], dma_f_word_t *out,
+void store(f_word_t _outbuff[SIZE_OUT_CHUNK_DATA], dma_word_t *out,
           /* <<--compute-params-->> */
 	 const unsigned data_out_size,
 	 const unsigned data_in_size,
+      const unsigned block_size,
 	   dma_info_t &store_ctrl, int chunk, int batch)
 {
 store_data:
@@ -57,28 +59,22 @@ store_data:
 
     for (unsigned i = 0; i < dma_length; i++) {
     store_label1:for(unsigned j = 0; j < VALUES_PER_WORD; j++) {
-
 	    out[dma_index + i].word[j] = _outbuff[i * VALUES_PER_WORD + j];
-        #ifndef __SYNTHESIS__
-        std::cout << out[dma_index + i].word[j] << "    "<<   _outbuff[i * VALUES_PER_WORD + j] << "    "<< i << "    "<< j << std::endl;
-    #endif
 	}
     }
-    #ifndef __SYNTHESIS__
-        std::cout << out[dma_index +0].word[0] << "    "<<  _outbuff[0] << std::endl;
-    #endif
 }
 
 
 void compute(word_t _inbuff[SIZE_IN_CHUNK_DATA],
              /* <<--compute-params-->> */
 	 const unsigned data_out_size,
-	 const unsigned data_in_size, f_word_t _tmpbuff[64],
+	 const unsigned data_in_size, 
+      const unsigned block_size, f_word_t _tmpbuff[64],
             f_word_t _outbuff[SIZE_OUT_CHUNK_DATA])
 {
 
     // TODO implement compute functionality
-    const unsigned length =  4096; //round_up(data_in_size, VALUES_PER_WORD) / 64;
+    const unsigned length = round_up(data_in_size, VALUES_PER_WORD) / 64;
     const unsigned out_length = round_up(data_out_size, VALUES_PER_WORD) / 1;
 
     
@@ -88,9 +84,6 @@ void compute(word_t _inbuff[SIZE_IN_CHUNK_DATA],
 
      for (int i = 0; i < length; i++){
         _tmpbuff[0] = _tmpbuff[0] + 2*_inbuff[i] - 1;
-         #ifndef __SYNTHESIS__
-            std::cout << _inbuff[i] << "\n";
-        #endif
      }
 
     #ifndef SYNTHESIS
@@ -108,22 +101,24 @@ void compute(word_t _inbuff[SIZE_IN_CHUNK_DATA],
         _outbuff[i] = _tmpbuff[3];
         }
 
-        #ifndef __SYNTHESIS__
-        std::cout << _outbuff[0] << std::endl;
+    #ifndef __SYNTHESIS__
+        std::cout << _outbuff[0] << "\n";
     #endif
 }
 
 
-void top(dma_f_word_t *out, dma_word_t *in1,
+void top(dma_word_t *out, dma_word_t *in1,
          /* <<--params-->> */
 	 const unsigned conf_info_data_out_size,
 	 const unsigned conf_info_data_in_size,
+     const unsigned conf_info_block_size,
 	 dma_info_t &load_ctrl, dma_info_t &store_ctrl)
 {
 
     /* <<--local-params-->> */
 	 const unsigned data_out_size = conf_info_data_out_size;
 	 const unsigned data_in_size = conf_info_data_in_size;
+     const unsigned block_size = conf_info_block_size;
 
     static word_t _inbuff[SIZE_IN_CHUNK_DATA];
     static f_word_t _outbuff[SIZE_OUT_CHUNK_DATA];
@@ -135,7 +130,7 @@ batching:
     {
         // Chunking
     go:
-        for (int c = 0; c < data_in_size/4096; c++)
+        for (int c = 0; c < data_out_size/4096; c++)
         {
 
 
@@ -143,17 +138,20 @@ batching:
                  /* <<--args-->> */
 	 	 data_out_size,
 	 	 data_in_size,
+         block_size,
                  load_ctrl, c, b);
             compute(_inbuff,
                     /* <<--args-->> */
 	 	 data_out_size,
 	 	 data_in_size,
+         block_size,
                      _tmpbuff, 
                      _outbuff);
             store(_outbuff, out,
                   /* <<--args-->> */
 	 	 data_out_size,
 	 	 data_in_size,
+         block_size,
                   store_ctrl, c, b);
         }
     }

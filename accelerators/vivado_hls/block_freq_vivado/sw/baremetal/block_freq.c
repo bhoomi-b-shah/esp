@@ -10,7 +10,7 @@
 #include <esp_probe.h>
 #include <fixed_point.h>
 
-typedef int32_t word_t;
+typedef int32_t token_t;
 
 static unsigned DMA_WORD_PER_BEAT(unsigned _st)
 {
@@ -18,12 +18,13 @@ static unsigned DMA_WORD_PER_BEAT(unsigned _st)
 }
 
 
-#define SLD_UNEVEN 0x75
-#define DEV_NAME "sld,uneven_vivado"
+#define SLD_BLOCK_FREQ 0x77
+#define DEV_NAME "sld,block_freq_vivado"
 
 /* <<--params-->> */
-const int32_t data_out_size = 2;
-const int32_t data_in_size = 8192*8;
+const int32_t data_out_size = 8;
+const int32_t data_in_size = 8192;
+const int32_t block_size = 32;
 
 static unsigned in_words_adj;
 static unsigned out_words_adj;
@@ -43,11 +44,12 @@ static unsigned mem_size;
 
 /* User defined registers */
 /* <<--regs-->> */
-#define UNEVEN_DATA_OUT_SIZE_REG 0x44
-#define UNEVEN_DATA_IN_SIZE_REG 0x40
+#define BLOCK_FREQ_DATA_OUT_SIZE_REG 0x48
+#define BLOCK_FREQ_DATA_IN_SIZE_REG 0x44
+#define BLOCK_FREQ_BLOCK_SIZE_REG 0x40
 
 
-static int validate_buf(word_t *out, word_t *gold)
+static int validate_buf(token_t *out, token_t *gold)
 {
 	int i;
 	int j;
@@ -55,30 +57,25 @@ static int validate_buf(word_t *out, word_t *gold)
 
 	for (i = 0; i < 1; i++)
 		for (j = 0; j < data_out_size; j++)
-		{
 			if (gold[i * out_words_adj + j] != out[i * out_words_adj + j])
 				errors++;
-			printf("data out is %d", out[i * out_words_adj + j]);
-			}
 
 	return errors;
 }
 
 
-static void init_buf (word_t *in, word_t * gold)
+static void init_buf (token_t *in, token_t * gold)
 {
 	int i;
 	int j;
-	int k;
 
 	for (i = 0; i < 1; i++)
 		for (j = 0; j < data_in_size; j++)
-			in[i * in_words_adj + j] = (word_t) (j%125)%2;
+			in[i * in_words_adj + j] = (token_t) j;
 
 	for (i = 0; i < 1; i++)
 		for (j = 0; j < data_out_size; j++)
-			for (k = 0; k < data_in_size; k++)
-				gold[i * out_words_adj + j] += (word_t) 1;
+			gold[i * out_words_adj + j] = (token_t) j;
 }
 
 
@@ -91,32 +88,32 @@ int main(int argc, char * argv[])
 	struct esp_device *dev;
 	unsigned done;
 	unsigned **ptable;
-	word_t *mem;
-	word_t *gold;
+	token_t *mem;
+	token_t *gold;
 	unsigned errors = 0;
 	unsigned coherence;
 
-	if (DMA_WORD_PER_BEAT(sizeof(word_t)) == 0) {
+	if (DMA_WORD_PER_BEAT(sizeof(token_t)) == 0) {
 		in_words_adj = data_in_size;
 		out_words_adj = data_out_size;
 	} else {
-		in_words_adj = round_up(data_in_size, DMA_WORD_PER_BEAT(sizeof(word_t)));
-		out_words_adj = round_up(data_out_size, DMA_WORD_PER_BEAT(sizeof(word_t)));
+		in_words_adj = round_up(data_in_size, DMA_WORD_PER_BEAT(sizeof(token_t)));
+		out_words_adj = round_up(data_out_size, DMA_WORD_PER_BEAT(sizeof(token_t)));
 	}
 	in_len = in_words_adj * (1);
 	out_len = out_words_adj * (1);
-	in_size = in_len * sizeof(word_t);
-	out_size = out_len * sizeof(word_t);
+	in_size = in_len * sizeof(token_t);
+	out_size = out_len * sizeof(token_t);
 	out_offset  = in_len;
-	mem_size = (out_offset * sizeof(word_t)) + out_size;
+	mem_size = (out_offset * sizeof(token_t)) + out_size;
 
 
 	// Search for the device
 	printf("Scanning device tree... \n");
 
-	ndev = probe(&espdevs, VENDOR_SLD, SLD_UNEVEN, DEV_NAME);
+	ndev = probe(&espdevs, VENDOR_SLD, SLD_BLOCK_FREQ, DEV_NAME);
 	if (ndev == 0) {
-		printf("uneven not found\n");
+		printf("block_freq not found\n");
 		return 0;
 	}
 
@@ -145,7 +142,7 @@ int main(int argc, char * argv[])
 		// Alocate and populate page table
 		ptable = aligned_malloc(NCHUNK(mem_size) * sizeof(unsigned *));
 		for (i = 0; i < NCHUNK(mem_size); i++)
-			ptable[i] = (unsigned *) &mem[i * (CHUNK_SIZE / sizeof(word_t))];
+			ptable[i] = (unsigned *) &mem[i * (CHUNK_SIZE / sizeof(token_t))];
 
 		printf("  ptable = %p\n", ptable);
 		printf("  nchunk = %lu\n", NCHUNK(mem_size));
@@ -180,8 +177,9 @@ int main(int argc, char * argv[])
 
 			// Pass accelerator-specific configuration parameters
 			/* <<--regs-config-->> */
-		iowrite32(dev, UNEVEN_DATA_OUT_SIZE_REG, data_out_size);
-		iowrite32(dev, UNEVEN_DATA_IN_SIZE_REG, data_in_size);
+		iowrite32(dev, BLOCK_FREQ_DATA_OUT_SIZE_REG, data_out_size);
+		iowrite32(dev, BLOCK_FREQ_DATA_IN_SIZE_REG, data_in_size);
+		iowrite32(dev, BLOCK_FREQ_BLOCK_SIZE_REG, block_size);
 
 			// Flush (customize coherence model here)
 			esp_flush(coherence);

@@ -33,10 +33,6 @@ typedef struct dma_word {
     word_t word[VALUES_PER_WORD];
 } dma_word_t;
 
-typedef struct dma_f_word {
-    f_word_t word[VALUES_PER_WORD];
-} dma_f_word_t;
-
 typedef word_t in_data_word;
 typedef word_t out_data_word;
 
@@ -64,10 +60,11 @@ typedef struct dma_info {
 #define SIZE_WORD_T SIZE_DWORD
 #endif
 
-void top(dma_f_word_t *out, dma_word_t *in1,
+void top(dma_word_t *out, dma_word_t *in1,
 	/* <<--params-->> */
 	 const unsigned conf_info_data_out_size,
 	 const unsigned conf_info_data_in_size,
+	 const unsigned conf_info_block_size,
 	 dma_info_t &load_ctrl, dma_info_t &store_ctrl);
 
 void compute(word_t _inbuff[SIZE_IN_CHUNK_DATA],
