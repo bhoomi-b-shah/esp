@@ -1,0 +1,44 @@
+// Copyright (c) 2011-2023 Columbia University, System Level Design Group
+// SPDX-License-Identifier: Apache-2.0
+#ifndef __ESP_CFG_000_H__
+#define __ESP_CFG_000_H__
+
+#include "libesp.h"
+#include "uneven_vivado.h"
+
+typedef int32_t token_t;
+
+/* <<--params-def-->> */
+#define DATA_OUT_SIZE 2
+#define DATA_IN_SIZE 8192
+
+/* <<--params-->> */
+const int32_t data_out_size = DATA_OUT_SIZE;
+const int32_t data_in_size = DATA_IN_SIZE;
+
+#define NACC 1
+
+struct uneven_vivado_access uneven_cfg_000[] = {
+	{
+		/* <<--descriptor-->> */
+		.data_out_size = DATA_OUT_SIZE,
+		.data_in_size = DATA_IN_SIZE,
+		.src_offset = 0,
+		.dst_offset = 0,
+		.esp.coherence = ACC_COH_NONE,
+		.esp.p2p_store = 0,
+		.esp.p2p_nsrcs = 0,
+		.esp.p2p_srcs = {"", "", "", ""},
+	}
+};
+
+esp_thread_info_t cfg_000[] = {
+	{
+		.run = true,
+		.devname = "uneven_vivado.0",
+		.ioctl_req = UNEVEN_VIVADO_IOC_ACCESS,
+		.esp_desc = &(uneven_cfg_000[0].esp),
+	}
+};
+
+#endif /* __ESP_CFG_000_H__ */
