@@ -23,7 +23,7 @@ static unsigned DMA_WORD_PER_BEAT(unsigned _st)
 
 /* <<--params-->> */
 const int32_t data_out_size = 2;
-const int32_t data_in_size = 8192*8;
+const int32_t data_in_size = 8192;
 
 static unsigned in_words_adj;
 static unsigned out_words_adj;

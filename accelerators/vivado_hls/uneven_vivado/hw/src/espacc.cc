@@ -74,40 +74,54 @@ void compute(word_t _inbuff[SIZE_IN_CHUNK_DATA],
              /* <<--compute-params-->> */
 	 const unsigned data_out_size,
 	 const unsigned data_in_size, f_word_t _tmpbuff[64],
-            f_word_t _outbuff[SIZE_OUT_CHUNK_DATA])
+            f_word_t _outbuff[SIZE_OUT_CHUNK_DATA], int chunk, int batch)
 {
 
     // TODO implement compute functionality
     const unsigned length =  4096; //round_up(data_in_size, VALUES_PER_WORD) / 64;
     const unsigned out_length = round_up(data_out_size, VALUES_PER_WORD) / 1;
 
-    
-#ifndef __SYNTHESIS__
-        std::cout << "Here " << std::endl;
-    #endif
-
-     for (int i = 0; i < length; i++){
-        _tmpbuff[0] = _tmpbuff[0] + 2*_inbuff[i] - 1;
-         #ifndef __SYNTHESIS__
-            std::cout << _inbuff[i] << "\n";
-        #endif
-     }
-
     #ifndef SYNTHESIS
-    _tmpbuff[1] =  (fabs((_tmpbuff[0].to_float()))/sqrt(data_in_size));
-    _tmpbuff[2] = _tmpbuff[1].to_float()/sqrt(2);
-    _tmpbuff[3] = erfc(_tmpbuff[2].to_float());
-    #else
-    _tmpbuff[1]  = (fabs((_tmpbuff[0]))/sqrt(data_in_size));
-    _tmpbuff[2] = _tmpbuff[1]/sqrt(2);
-    _tmpbuff[3] = erfc(_tmpbuff[2]);
-    #endif
-    
-    for (int i = 0; i < out_length; i++)
-    {
-        _outbuff[i] = _tmpbuff[3];
+    for (int i = 0; i < length; i++){
+        _tmpbuff[8] = _inbuff[i];
+        _tmpbuff[0] = _tmpbuff[0] + _tmpbuff[8]; //S
+        if(i == 0 && chunk == 0){
+                _tmpbuff[5] = 1;
+            }
+        else{
+            if(_tmpbuff[3] != _tmpbuff[8]){
+                    _tmpbuff[5] = _tmpbuff[5] + 1;
+                }
+            }
+        _tmpbuff[3] = _tmpbuff[8];
         }
 
+        _tmpbuff[1] =  _tmpbuff[0].to_float()/(float)data_in_size;
+        _tmpbuff[6] = fabs(_tmpbuff[5].to_float() - 2.0 * data_in_size * _tmpbuff[1].to_float() * (1-_tmpbuff[1].to_float())) / (2.0 * _tmpbuff[1].to_float() * (1-_tmpbuff[1].to_float()) * sqrt(2*data_in_size));
+		_tmpbuff[2] = erfc(_tmpbuff[6].to_float());
+
+    #else
+    for (int i = 0; i < length; i++){
+        _tmpbuff[8] = _inbuff[i];
+        _tmpbuff[0] = _tmpbuff[0] + _tmpbuff[8]; //S
+        if(i == 0 && chunk == 0){
+                _tmpbuff[5] = 1;
+            }
+        else{
+            if(_tmpbuff[3] != _tmpbuff[8]){
+                    _tmpbuff[5] = _tmpbuff[5] + 1;
+                }
+            }
+        _tmpbuff[3] = _tmpbuff[8];
+    }
+        _tmpbuff[1] =  _tmpbuff[0]/data_in_size;
+        _tmpbuff[6] = fabs(_tmpbuff[5] - 2.0 * data_in_size * _tmpbuff[1] * (1-_tmpbuff[1])) / (2.0 * _tmpbuff[1] * (1-_tmpbuff[1]) * sqrt(2*data_in_size));
+		_tmpbuff[2] = erfc(_tmpbuff[6]);
+
+    #endif //for next chumk, preserve last element
+
+        _outbuff[0] = _tmpbuff[2];
+        _outbuff[1] = _tmpbuff[1];
         #ifndef __SYNTHESIS__
         std::cout << _outbuff[0] << std::endl;
     #endif
@@ -127,7 +141,7 @@ void top(dma_f_word_t *out, dma_word_t *in1,
 
     static word_t _inbuff[SIZE_IN_CHUNK_DATA];
     static f_word_t _outbuff[SIZE_OUT_CHUNK_DATA];
-    static f_word_t _tmpbuff[4];
+    static f_word_t _tmpbuff[16];
 
     // Batching
 batching:
@@ -149,7 +163,7 @@ batching:
 	 	 data_out_size,
 	 	 data_in_size,
                      _tmpbuff, 
-                     _outbuff);
+                     _outbuff, c, b);
             store(_outbuff, out,
                   /* <<--args-->> */
 	 	 data_out_size,

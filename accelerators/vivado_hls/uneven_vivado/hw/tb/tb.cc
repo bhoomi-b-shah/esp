@@ -43,16 +43,46 @@ int main(int argc, char **argv) {
     // Prepare input data
     for(unsigned i = 0; i < 1; i++)
         for(unsigned j = 0; j < data_in_size; j++)
-            inbuff[i * in_words_adj + j] = (word_t) (j%125)%2;
+            inbuff[i * in_words_adj + j] = (word_t) (j/5)%2;
 
     for(unsigned i = 0; i < dma_in_size; i++)
 	for(unsigned k = 0; k < VALUES_PER_WORD; k++)
 	    mem[i].word[k] = inbuff[i * VALUES_PER_WORD + k];
 
+    int		S, k;
+	float	pi, V, erfc_arg, p_value;
+
+	S = 0;
+	for ( k=0; k<data_in_size; k++ )
+		if ( inbuff[k] )
+			S++;
+	pi = (float)S / (float)data_in_size;
+
+	if ( 0 || fabs(pi - 0.5) > (2.0 / sqrt(data_in_size)) ) {
+		p_value = 0.0;
+	}
+	else {
+
+		V = 1;
+		for ( k=1; k<data_in_size; k++ )
+			if ( inbuff[k] != inbuff[k-1] )
+				V++;
+	
+		erfc_arg = fabs(V - 2.0 * data_in_size * pi * (1-pi)) / (2.0 * pi * (1-pi) * sqrt(2*data_in_size));
+		p_value = erfc(erfc_arg);
+
+      
+		}
+      std::cout << "p_value is" << p_value<<std::endl;
+      
+      std::cout << "V is " << V <<std::endl;
+
+      std::cout << "pi is " << pi <<std::endl;
+      
     // Set golden output
     for(unsigned i = 0; i < 1; i++)
         for(unsigned j = 0; j < data_out_size; j++)
-            outbuff_gold[i * out_words_adj + j] = (f_word_t) j;
+            outbuff_gold[i * out_words_adj + j] = (f_word_t) p_value;
 
     dma_f_word_t* f_mem = (dma_f_word_t*)mem;
     // Call the TOP function
@@ -75,7 +105,7 @@ int main(int argc, char **argv) {
 		errors++;
 
     if (errors)
-	std::cout << "Test FAILED with " << errors << " errors.  " << outbuff[0].to_float() << "   " << outbuff[1] << std::endl;
+	std::cout << "Test FAILED with " << errors << " errors.  " << outbuff[0].to_float() << "   " << outbuff_gold[0] << "    " << outbuff[1].to_float() << "   " << outbuff_gold[1] << std::endl<< std::endl;
     else
 	std::cout << "Test PASSED." << std::endl;
 
