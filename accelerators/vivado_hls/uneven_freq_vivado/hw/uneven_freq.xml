@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sld>
+  <accelerator name="uneven_freq" desc="Accelerator UNEVEN_FREQ" data_size="4" device_id="85" hls_tool="vivado_hls">
+    <param name="data_in_size" desc="data_in_size" />
+    <param name="data_out_size" desc="data_out_size" />
+  </accelerator>
+</sld>
